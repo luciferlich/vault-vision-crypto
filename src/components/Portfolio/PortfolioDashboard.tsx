@@ -2,9 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { PortfolioOverview } from './PortfolioOverview';
 import { AddAssetDialog } from './AddAssetDialog';
 import { AssetTable, Asset } from './AssetTable';
+import { SimulationPanel } from './SimulationPanel';
 import { useCryptoData } from '@/hooks/useCryptoData';
 import { Button } from '@/components/ui/button';
-import { Sparkles, BarChart3 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sparkles, BarChart3, Activity } from 'lucide-react';
 
 interface PortfolioAsset {
   id: string;
@@ -95,14 +98,6 @@ export const PortfolioDashboard = () => {
             <p className="text-muted-foreground">Professional risk management and portfolio optimization</p>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline" className="border-border/50">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
-            </Button>
-            <Button variant="outline" className="border-border/50">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Monte Carlo
-            </Button>
             <AddAssetDialog onAddAsset={handleAddAsset} />
           </div>
         </div>
@@ -116,11 +111,47 @@ export const PortfolioDashboard = () => {
           dayChangePercent={portfolioMetrics.dayChangePercent}
         />
 
-        {/* Assets Table */}
-        <AssetTable
-          assets={portfolioMetrics.assets}
-          onRemoveAsset={handleRemoveAsset}
-        />
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="portfolio" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="portfolio" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Portfolio
+            </TabsTrigger>
+            <TabsTrigger value="simulation" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Risk Simulation
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="portfolio" className="space-y-6">
+            <AssetTable
+              assets={portfolioMetrics.assets}
+              onRemoveAsset={handleRemoveAsset}
+            />
+          </TabsContent>
+
+          <TabsContent value="simulation" className="space-y-6">
+            {portfolioMetrics.assets.length > 0 ? (
+              <SimulationPanel 
+                selectedAsset={portfolioMetrics.assets[0].symbol}
+                currentPrice={portfolioMetrics.assets[0].currentPrice}
+                historicalData={[]} // You can add historical data here
+              />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Assets for Simulation</h3>
+                  <p className="text-muted-foreground text-center max-w-md mb-6">
+                    Add some crypto assets to your portfolio to run advanced risk simulations and predictions.
+                  </p>
+                  <AddAssetDialog onAddAsset={handleAddAsset} />
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
