@@ -22,3 +22,19 @@ def run_simulation(request: SimulationRequest):
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# backend/main.py
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Allow frontend to talk to backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or "*" during development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
