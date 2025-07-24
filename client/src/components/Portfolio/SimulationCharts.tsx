@@ -14,6 +14,12 @@ interface SimulationResults {
   };
   model: string;
   parameters: Record<string, number>;
+  modelSpecificData?: {
+    jumpTimes?: number[][];
+    volatilityPaths?: number[][];
+    regimePaths?: number[][];
+    garchVolatility?: number[];
+  };
 }
 
 interface SimulationChartsProps {
@@ -117,71 +123,332 @@ export const SimulationCharts = ({ results, currentPrice, asset, holdingDays }: 
     },
   };
 
+  // Model-specific chart components
+  const renderModelSpecificCharts = () => {
+    switch (results.model) {
+      case 'jump-diffusion':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-red-500" />
+                  Jump Events Analysis
+                </CardTitle>
+                <CardDescription>Distribution and frequency of price jumps</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <BarChart data={distributionData} height={300}>
+                    <XAxis dataKey="price" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="hsl(var(--destructive))" />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Jump Impact Distribution</CardTitle>
+                <CardDescription>Magnitude of price discontinuities</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Average Jump Size:</span>
+                    <span className="font-mono">{(results.parameters.jumpMean * 100)?.toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Jump Frequency:</span>
+                    <span className="font-mono">{results.parameters.jumpIntensity?.toFixed(2)}/day</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Jump Volatility:</span>
+                    <span className="font-mono">{results.parameters.jumpStd?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'heston':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-blue-500" />
+                  Stochastic Volatility Evolution
+                </CardTitle>
+                <CardDescription>Time-varying volatility patterns</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <AreaChart data={pathData} height={300}>
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area dataKey="p75" stackId="1" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                    <Area dataKey="p25" stackId="1" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                    <Line dataKey="p50" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Volatility Clustering Parameters</CardTitle>
+                <CardDescription>Mean reversion characteristics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Mean Reversion Speed (κ):</span>
+                    <span className="font-mono">{results.parameters.kappa?.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Long-term Volatility (θ):</span>
+                    <span className="font-mono">{(results.parameters.theta * 100)?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Vol of Vol (σ):</span>
+                    <span className="font-mono">{results.parameters.sigma?.toFixed(3)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'garch':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-green-500" />
+                  GARCH Volatility Clustering
+                </CardTitle>
+                <CardDescription>Conditional heteroskedasticity patterns</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <ComposedChart data={pathData} height={300}>
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area dataKey="p75" stackId="1" stroke="none" fill="hsl(var(--muted))" fillOpacity={0.3} />
+                    <Line dataKey="p50" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>GARCH Model Parameters</CardTitle>
+                <CardDescription>Volatility persistence and clustering</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>ARCH Parameter (α₁):</span>
+                    <span className="font-mono">{results.parameters.alpha?.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>GARCH Parameter (β₁):</span>
+                    <span className="font-mono">{results.parameters.beta?.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Persistence:</span>
+                    <span className="font-mono">{((results.parameters.alpha || 0) + (results.parameters.beta || 0))?.toFixed(3)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'stable-levy':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-purple-500" />
+                  Heavy-Tailed Distribution
+                </CardTitle>
+                <CardDescription>Stable Lévy characteristics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <AreaChart data={returnsData} height={300}>
+                    <XAxis dataKey="return" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area dataKey="frequency" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.6} />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Lévy Distribution Parameters</CardTitle>
+                <CardDescription>Tail heaviness and skewness</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Stability Parameter (α):</span>
+                    <span className="font-mono">{results.parameters.alpha?.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Skewness Parameter (β):</span>
+                    <span className="font-mono">{results.parameters.beta?.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Tail Index:</span>
+                    <span className="font-mono">{(2 / (results.parameters.alpha || 2))?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'regime-switching':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-orange-500" />
+                  Market Regime Analysis
+                </CardTitle>
+                <CardDescription>Bull vs Bear market transitions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <ComposedChart data={pathData} height={300}>
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area dataKey="p75" stackId="1" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
+                    <Line dataKey="p50" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Regime Characteristics</CardTitle>
+                <CardDescription>Transition probabilities and persistence</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Bull Market Drift:</span>
+                    <span className="font-mono">{(results.parameters.mu1 * 100)?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Bear Market Drift:</span>
+                    <span className="font-mono">{(results.parameters.mu2 * 100)?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Transition Probability:</span>
+                    <span className="font-mono">{results.parameters.p?.toFixed(3)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      default: // GBM
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-blue-500" />
+                  Normal Distribution Analysis
+                </CardTitle>
+                <CardDescription>Classic lognormal price distribution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig}>
+                  <BarChart data={distributionData} height={300}>
+                    <XAxis dataKey="price" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>GBM Parameters</CardTitle>
+                <CardDescription>Constant drift and volatility</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Annual Drift (μ):</span>
+                    <span className="font-mono">{(results.parameters.drift * 365 * 100)?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Annual Volatility (σ):</span>
+                    <span className="font-mono">{(results.parameters.volatility * Math.sqrt(365) * 100)?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Sharpe Ratio:</span>
+                    <span className="font-mono">{(results.parameters.drift / results.parameters.volatility)?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Price Paths Chart */}
+      {/* Price Paths Chart - Common for all models */}
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Price Evolution Paths
+            Monte Carlo Price Paths - {results.model.toUpperCase()}
           </CardTitle>
           <CardDescription>
-            Monte Carlo simulation paths with confidence intervals ({results.paths.length} simulations)
+            Simulated price evolution for {asset} over {holdingDays} days ({results.paths.length.toLocaleString()} paths)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={pathData}>
-                <XAxis 
-                  dataKey="day" 
-                  type="number"
-                  domain={[0, holdingDays]}
-                  tickFormatter={(value) => `Day ${value}`}
-                />
-                <YAxis 
-                  tickFormatter={(value) => `$${value.toFixed(0)}`}
-                />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                  labelFormatter={(value) => `Day ${value}`}
-                />
+                <XAxis dataKey="day" tickFormatter={(value) => `Day ${value}`} />
+                <YAxis tickFormatter={(value) => `$${value.toFixed(0)}`} />
+                <ChartTooltip content={<ChartTooltipContent />} labelFormatter={(value) => `Day ${value}`} />
                 
                 {/* Confidence bands */}
-                <Area
-                  dataKey="p95"
-                  stroke="none"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.1}
-                />
-                <Area
-                  dataKey="p75"
-                  stroke="none"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.2}
-                />
-                <Area
-                  dataKey="p25"
-                  stroke="none"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.2}
-                />
-                <Area
-                  dataKey="p5"
-                  stroke="none"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.1}
-                />
+                <Area dataKey="p95" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.1} />
+                <Area dataKey="p75" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                <Area dataKey="p25" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                <Area dataKey="p5" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.1} />
                 
                 {/* Median line */}
-                <Line
-                  dataKey="p50"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={3}
-                  dot={false}
-                  name="Median"
-                />
+                <Line dataKey="p50" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} name="Median" />
                 
                 {/* Sample paths */}
                 {samplePaths.slice(0, 10).map((_, index) => (
@@ -192,7 +459,6 @@ export const SimulationCharts = ({ results, currentPrice, asset, holdingDays }: 
                     strokeWidth={1}
                     strokeOpacity={0.3}
                     dot={false}
-                    name={`Path ${index + 1}`}
                   />
                 ))}
               </ComposedChart>
@@ -201,136 +467,8 @@ export const SimulationCharts = ({ results, currentPrice, asset, holdingDays }: 
         </CardContent>
       </Card>
 
-      {/* Price Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Final Price Distribution
-          </CardTitle>
-          <CardDescription>
-            Distribution of {asset} prices after {holdingDays} days
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={distributionData}>
-                <XAxis 
-                  dataKey="price" 
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <YAxis />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                  labelFormatter={(value) => `Price: $${value}`}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="hsl(var(--primary))" 
-                  fillOpacity={0.8}
-                  name="Frequency"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* Returns Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Returns Distribution
-          </CardTitle>
-          <CardDescription>
-            Distribution of percentage returns after {holdingDays} days
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={returnsData}>
-                <XAxis 
-                  dataKey="return" 
-                  tickFormatter={(value) => `${value}%`}
-                />
-                <YAxis />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                  labelFormatter={(value) => `Return: ${value}%`}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="hsl(var(--chart-2))" 
-                  fillOpacity={0.8}
-                  name="Frequency"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* Model Statistics */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Model Statistics & Parameters
-          </CardTitle>
-          <CardDescription>
-            Statistical properties of the {results.model.toUpperCase()} model results
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">Mean Log Return</p>
-              <p className="text-2xl font-bold text-primary">
-                {(results.statistics.mean * 100).toFixed(3)}%
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">Volatility</p>
-              <p className="text-2xl font-bold text-orange-400">
-                {(results.statistics.volatility * 100).toFixed(2)}%
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">Skewness</p>
-              <p className="text-2xl font-bold text-blue-400">
-                {results.statistics.skewness.toFixed(3)}
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">Kurtosis</p>
-              <p className="text-2xl font-bold text-purple-400">
-                {results.statistics.kurtosis.toFixed(3)}
-              </p>
-            </div>
-          </div>
-          
-          {Object.keys(results.parameters).length > 0 && (
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-3">Model Parameters</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(results.parameters).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
-                    <span className="text-sm text-muted-foreground capitalize">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}:
-                    </span>
-                    <span className="text-sm font-mono">
-                      {typeof value === 'number' ? value.toFixed(4) : value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Model-Specific Charts */}
+      {renderModelSpecificCharts()}
     </div>
   );
 };
