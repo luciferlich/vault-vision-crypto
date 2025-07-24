@@ -12,12 +12,12 @@ import { useSimulationModels } from '@/hooks/useSimulationModels';
 interface SimulationPanelProps {
   selectedAsset: string;
   currentPrice: number;
-  historicalData?: number[];
+  fetchHistoricalData: (symbol: string) => Promise<number[]>;
 }
 
 type ModelType = 'gbm' | 'jump-diffusion' | 'heston' | 'garch' | 'stable-levy' | 'regime-switching';
 
-export const SimulationPanel = ({ selectedAsset, currentPrice, historicalData = [] }: SimulationPanelProps) => {
+export const SimulationPanel = ({ selectedAsset, currentPrice, fetchHistoricalData }: SimulationPanelProps) => {
   const [holdingDays, setHoldingDays] = useState([30]);
   const [numSimulations, setNumSimulations] = useState([1000]);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gbm');
@@ -28,14 +28,20 @@ export const SimulationPanel = ({ selectedAsset, currentPrice, historicalData = 
   const handleRunSimulation = async () => {
     setIsRunning(true);
     try {
+      console.log('Fetching historical data for:', selectedAsset);
+      const historicalPrices = await fetchHistoricalData(selectedAsset);
+      console.log('Historical data length:', historicalPrices.length);
+      
       await runSimulation({
         model: selectedModel,
         asset: selectedAsset,
         currentPrice,
         holdingDays: holdingDays[0],
         numSimulations: numSimulations[0],
-        historicalPrices: historicalData,
+        historicalPrices,
       });
+    } catch (error) {
+      console.error('Simulation error:', error);
     } finally {
       setIsRunning(false);
     }
