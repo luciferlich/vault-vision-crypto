@@ -5,6 +5,7 @@ This is a full-stack cryptocurrency portfolio management application built with 
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
+Deployment preference: GitHub integration and external hosting required.
 
 ## System Architecture
 
@@ -100,3 +101,11 @@ Preferred communication style: Simple, everyday language.
 - Build artifacts in `dist/` directory
 
 The application follows a monorepo structure with clear separation between client, server, and shared code. The architecture emphasizes type safety, developer experience, and scalable data management for financial applications.
+
+## Recent Changes (January 2025)
+- ✓ Implemented model-specific visualizations for financial simulations
+- ✓ Created unique charts for each stochastic model (Jump-Diffusion, Heston, GARCH, Stable Lévy, Regime-Switching)
+- ✓ Fixed simulation engine to return model-specific parameters and analysis
+- ✓ Database integration with PostgreSQL for persistent portfolio data
+- ✓ Real-time crypto pricing with KuCoin API integration
+- → Preparing for GitHub deployment and external hosting
