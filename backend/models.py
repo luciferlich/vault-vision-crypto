@@ -5,6 +5,7 @@ class SimulationRequest(BaseModel):
     symbol: str
     holding_days: int
     simulations: int
+    current_price: float
     model: Literal[
-        "gbm", "brownian", "jump", "bootstrap", "garch"
+        "gbm", "jump-diffusion", "heston", "garch", "stable-levy", "regime-switching"
     ]

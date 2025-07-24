@@ -29,5 +29,5 @@ def simulate(req: SimulationRequest):
         raise HTTPException(status_code=400, detail="Insufficient data")
 
     prices = df["close"]
-    result = run_simulation(prices, req.holding_days, req.simulations, req.model)
+    result = run_simulation(prices, req.holding_days, req.simulations, req.model, req.current_price)
     return result
