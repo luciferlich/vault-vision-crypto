@@ -1,4 +1,6 @@
 import { users, portfolioAssets, type User, type InsertUser, type PortfolioAsset, type InsertPortfolioAsset } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -79,4 +81,58 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getPortfolioAssets(): Promise<PortfolioAsset[]> {
+    return await db.select().from(portfolioAssets);
+  }
+
+  async getPortfolioAsset(id: number): Promise<PortfolioAsset | undefined> {
+    const [asset] = await db.select().from(portfolioAssets).where(eq(portfolioAssets.id, id));
+    return asset || undefined;
+  }
+
+  async createPortfolioAsset(insertAsset: InsertPortfolioAsset): Promise<PortfolioAsset> {
+    const [asset] = await db
+      .insert(portfolioAssets)
+      .values(insertAsset)
+      .returning();
+    return asset;
+  }
+
+  async updatePortfolioAsset(id: number, updates: Partial<InsertPortfolioAsset>): Promise<PortfolioAsset | undefined> {
+    const [asset] = await db
+      .update(portfolioAssets)
+      .set(updates)
+      .where(eq(portfolioAssets.id, id))
+      .returning();
+    return asset || undefined;
+  }
+
+  async deletePortfolioAsset(id: number): Promise<boolean> {
+    const result = await db
+      .delete(portfolioAssets)
+      .where(eq(portfolioAssets.id, id))
+      .returning();
+    return result.length > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();
