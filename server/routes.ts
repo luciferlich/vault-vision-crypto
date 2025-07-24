@@ -78,23 +78,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbolList = symbols.split(',');
       const prices: Record<string, any> = {};
 
-      // KuCoin symbol mapping
-      const SYMBOL_MAPPING: Record<string, string> = {
-        'BTC': 'BTC-USDT',
-        'ETH': 'ETH-USDT', 
-        'SOL': 'SOL-USDT',
-        'ADA': 'ADA-USDT',
-        'DOT': 'DOT-USDT',
-        'LINK': 'LINK-USDT',
-        'MATIC': 'MATIC-USDT',
-        'AVAX': 'AVAX-USDT',
-        'UNI': 'UNI-USDT',
-        'ATOM': 'ATOM-USDT',
-        'WIF': 'WIF-USDT',
-      };
-
       for (const symbol of symbolList) {
-        const kucoinSymbol = SYMBOL_MAPPING[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USDT`;
+        const kucoinSymbol = `${symbol.toUpperCase()}-USDT`;
         
         try {
           const response = await fetch(
@@ -103,34 +88,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (response.ok) {
             const data = await response.json();
+            console.log(`KuCoin response for ${symbol}:`, JSON.stringify(data, null, 2));
             
             if (data.code === '200000' && data.data) {
               const ticker = data.data;
+              const price = parseFloat(ticker.last || ticker.buy || 0);
+              console.log(`Parsed price for ${symbol}: ${price}`);
+              
               prices[symbol.toLowerCase()] = {
-                price: parseFloat(ticker.last || ticker.buy || 0),
+                price: price,
                 change24h: parseFloat(ticker.changeRate || 0) * 100,
                 volume24h: parseFloat(ticker.volValue || 0),
                 symbol: symbol.toUpperCase(),
               };
             }
           } else {
-            // Provide fallback mock data
-            prices[symbol.toLowerCase()] = {
-              price: Math.random() * 50000 + 1000,
-              change24h: (Math.random() - 0.5) * 20,
-              volume24h: Math.random() * 1000000000,
-              symbol: symbol.toUpperCase(),
-            };
+            console.warn(`Failed to fetch ${symbol} from KuCoin API - status ${response.status}`);
           }
         } catch (error) {
           console.warn(`Error fetching ${symbol}:`, error);
-          // Provide fallback mock data
-          prices[symbol.toLowerCase()] = {
-            price: Math.random() * 50000 + 1000,
-            change24h: (Math.random() - 0.5) * 20,
-            volume24h: Math.random() * 1000000000,
-            symbol: symbol.toUpperCase(),
-          };
         }
       }
 
@@ -144,21 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/crypto/historical/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol;
-      const SYMBOL_MAPPING: Record<string, string> = {
-        'BTC': 'BTC-USDT',
-        'ETH': 'ETH-USDT', 
-        'SOL': 'SOL-USDT',
-        'ADA': 'ADA-USDT',
-        'DOT': 'DOT-USDT',
-        'LINK': 'LINK-USDT',
-        'MATIC': 'MATIC-USDT',
-        'AVAX': 'AVAX-USDT',
-        'UNI': 'UNI-USDT',
-        'ATOM': 'ATOM-USDT',
-        'WIF': 'WIF-USDT',
-      };
-
-      const kucoinSymbol = SYMBOL_MAPPING[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USDT`;
+      const kucoinSymbol = `${symbol.toUpperCase()}-USDT`;
       const endTime = Math.floor(Date.now() / 1000);
       const startTime = endTime - (365 * 24 * 60 * 60); // 1 year ago
       
