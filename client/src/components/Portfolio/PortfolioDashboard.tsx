@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PortfolioOverview } from './PortfolioOverview';
 import { AddAssetDialog } from './AddAssetDialog';
 import { AssetTable, Asset } from './AssetTable';
@@ -47,7 +47,51 @@ export const PortfolioDashboard = () => {
     });
   }, [portfolioAssets, getPrice]);
 
-  // Calculate total portfolio metrics with allocations
+  // Calculate dynamic risk score based on portfolio composition
+  const calculateRiskScore = useCallback((assets: any[]) => {
+    if (assets.length === 0) return { score: 0, label: 'N/A' };
+
+    // Risk factors for different cryptocurrencies
+    const cryptoRiskFactors: Record<string, number> = {
+      'BTC': 3.5,   // Lower risk - most established
+      'ETH': 4.2,   // Medium-low risk
+      'SOL': 6.8,   // Medium-high risk - newer, more volatile
+      'ADA': 5.5,   // Medium risk
+      'DOT': 6.2,   // Medium-high risk
+      'LINK': 5.8,  // Medium risk
+      'MATIC': 6.5, // Medium-high risk
+      'AVAX': 6.3,  // Medium-high risk
+      'UNI': 6.0,   // Medium risk
+      'ATOM': 5.9,  // Medium risk
+      'WIF': 8.5,   // High risk - meme coin
+    };
+
+    // Calculate weighted risk score based on portfolio allocation
+    let weightedRiskScore = 0;
+    let totalWeight = 0;
+
+    assets.forEach(asset => {
+      const baseRisk = cryptoRiskFactors[asset.symbol] || 7.0; // Default risk for unknown coins
+      const volatilityMultiplier = Math.abs(asset.dayChangePercent) / 10; // Higher daily volatility = higher risk
+      const adjustedRisk = Math.min(10, baseRisk + volatilityMultiplier);
+      
+      const weight = asset.allocation / 100;
+      weightedRiskScore += adjustedRisk * weight;
+      totalWeight += weight;
+    });
+
+    const finalScore = totalWeight > 0 ? weightedRiskScore : 0;
+    
+    // Determine risk label
+    let label = 'Low';
+    if (finalScore >= 7.5) label = 'High';
+    else if (finalScore >= 5.5) label = 'Moderate';
+    else if (finalScore >= 3.5) label = 'Low-Medium';
+
+    return { score: Math.round(finalScore * 10) / 10, label };
+  }, []);
+
+  // Calculate total portfolio metrics with allocations and risk
   const portfolioSummary = useMemo(() => {
     const totalValue = enrichedAssets.reduce((sum, asset) => sum + asset.value, 0);
     const totalCost = enrichedAssets.reduce((sum, asset) => sum + (asset.quantity * asset.entryPrice), 0);
@@ -64,6 +108,9 @@ export const PortfolioDashboard = () => {
       allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0,
     }));
 
+    // Calculate dynamic risk score
+    const riskData = calculateRiskScore(assetsWithAllocations);
+
     return {
       totalValue,
       totalCost,
@@ -73,8 +120,10 @@ export const PortfolioDashboard = () => {
       total24hChangePercent: total24hChangePercent,
       assetCount: enrichedAssets.length,
       assets: assetsWithAllocations,
+      riskScore: riskData.score,
+      riskLabel: riskData.label,
     };
-  }, [enrichedAssets]);
+  }, [enrichedAssets, calculateRiskScore]);
 
   // Fetch prices when assets change
   useEffect(() => {
@@ -117,6 +166,8 @@ export const PortfolioDashboard = () => {
           totalGainLossPercent={portfolioSummary.totalUnrealizedPnLPercent}
           dayChange={portfolioSummary.total24hChange}
           dayChangePercent={portfolioSummary.total24hChangePercent}
+          riskScore={portfolioSummary.riskScore}
+          riskLabel={portfolioSummary.riskLabel}
         />
 
         {/* Main Content Tabs */}

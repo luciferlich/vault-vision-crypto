@@ -9,6 +9,8 @@ interface PortfolioOverviewProps {
   totalGainLossPercent: number;
   dayChange: number;
   dayChangePercent: number;
+  riskScore: number;
+  riskLabel: string;
 }
 
 export const PortfolioOverview = ({
@@ -17,6 +19,8 @@ export const PortfolioOverview = ({
   totalGainLossPercent,
   dayChange,
   dayChangePercent,
+  riskScore,
+  riskLabel,
 }: PortfolioOverviewProps) => {
   const isPositiveTotal = totalGainLoss >= 0;
   const isPositiveDay = dayChange >= 0;
@@ -79,8 +83,24 @@ export const PortfolioOverview = ({
           <span className="text-sm font-medium text-muted-foreground">Risk Score</span>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-2xl font-bold text-foreground">7.2</span>
-          <Badge variant="secondary" className="text-xs">Moderate</Badge>
+          <span className={cn(
+            "text-2xl font-bold",
+            riskScore >= 7.5 ? "text-danger" : 
+            riskScore >= 5.5 ? "text-amber-500" : 
+            "text-success"
+          )}>
+            {riskScore || 'N/A'}
+          </span>
+          <Badge 
+            variant={
+              riskScore >= 7.5 ? "destructive" : 
+              riskScore >= 5.5 ? "secondary" : 
+              "default"
+            } 
+            className="text-xs"
+          >
+            {riskLabel}
+          </Badge>
         </div>
       </Card>
     </div>
