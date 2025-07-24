@@ -16,7 +16,8 @@ This guide will help you deploy your Cryptocurrency Portfolio Dashboard to vario
 1. Push your code to GitHub
 2. Go to [vercel.com](https://vercel.com) and sign up with GitHub
 3. Click "New Project" and import your repository
-4. Add environment variables in Vercel dashboard:
+4. **Important**: If you get a "functions/builds" error, rename `vercel-simple.json` to `vercel.json`
+5. Add environment variables in Vercel dashboard:
    ```
    DATABASE_URL=your_neon_database_url
    PGHOST=your_db_host
@@ -25,7 +26,11 @@ This guide will help you deploy your Cryptocurrency Portfolio Dashboard to vario
    PGUSER=your_db_user
    PGPASSWORD=your_db_password
    ```
-5. Deploy automatically!
+6. Deploy automatically!
+
+**Troubleshooting:**
+- If deployment fails, use the simplified `vercel-simple.json` configuration
+- Ensure your `package.json` has the correct build scripts
 
 ### 2. Railway (Database + App Hosting)
 
