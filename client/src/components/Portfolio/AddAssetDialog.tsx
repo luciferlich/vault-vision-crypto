@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface AssetData {
   symbol: string;
@@ -22,12 +22,17 @@ export const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const [quantity, setQuantity] = useState("");
   const [entryPrice, setEntryPrice] = useState("");
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!symbol || !quantity || !entryPrice) {
-      toast.error("Please fill in all fields");
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -48,9 +53,16 @@ export const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
       setEntryPrice("");
       setOpen(false);
       
-      toast.success(`Added ${assetData.symbol} to portfolio`);
+      toast({
+        title: "Asset Added",
+        description: `Added ${assetData.symbol} to portfolio`,
+      });
     } catch (error) {
-      toast.error("Failed to add asset");
+      toast({
+        title: "Error",
+        description: "Failed to add asset",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

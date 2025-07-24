@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface SimulationParams {
   model: 'gbm' | 'jump-diffusion' | 'heston' | 'garch' | 'stable-levy' | 'regime-switching';
@@ -25,6 +25,7 @@ interface SimulationResults {
 export const useSimulationModels = () => {
   const [results, setResults] = useState<SimulationResults | null>(null);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const calculateReturns = (prices: number[]): number[] => {
     const returns: number[] = [];
@@ -350,11 +351,18 @@ export const useSimulationModels = () => {
       
       setResults(results);
       console.log('Simulation completed:', results); // Debug log
-      toast.success(`${params.model.toUpperCase()} simulation completed with ${params.numSimulations} paths`);
+      toast({
+        title: "Simulation Complete",
+        description: `${params.model.toUpperCase()} simulation completed with ${params.numSimulations} paths`,
+      });
       
     } catch (error) {
       console.error('Simulation error:', error);
-      toast.error('Failed to run simulation');
+      toast({
+        title: "Simulation Failed",
+        description: "Failed to run simulation",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

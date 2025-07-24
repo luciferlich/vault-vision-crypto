@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface CryptoPrice {
   price: number;
@@ -25,6 +25,7 @@ const SYMBOL_MAPPING: Record<string, string> = {
 export const useCryptoData = () => {
   const [prices, setPrices] = useState<Record<string, CryptoPrice>>({});
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const fetchPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -80,7 +81,10 @@ export const useCryptoData = () => {
       setPrices(prevPrices => ({ ...prevPrices, ...newPrices }));
       
       if (Object.keys(newPrices).length > 0) {
-        toast.success(`Updated prices for ${Object.keys(newPrices).length} assets`);
+        toast({
+          title: "Prices Updated",
+          description: `Updated prices for ${Object.keys(newPrices).length} assets`,
+        });
       }
       
     } catch (error) {
@@ -98,7 +102,10 @@ export const useCryptoData = () => {
       });
       
       setPrices(prevPrices => ({ ...prevPrices, ...mockPrices }));
-      toast.info('Using demo data - API temporarily unavailable');
+      toast({
+        title: "Demo Mode",
+        description: "Using demo data - API temporarily unavailable",
+      });
       
     } finally {
       setLoading(false);
