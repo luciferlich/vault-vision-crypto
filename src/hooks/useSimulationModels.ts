@@ -349,6 +349,7 @@ export const useSimulationModels = () => {
       };
       
       setResults(results);
+      console.log('Simulation completed:', results); // Debug log
       toast.success(`${params.model.toUpperCase()} simulation completed with ${params.numSimulations} paths`);
       
     } catch (error) {

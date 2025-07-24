@@ -18,39 +18,45 @@ interface PortfolioAsset {
 
 export const PortfolioDashboard = () => {
   const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>([]);
-  const { getPrice, fetchPrices } = useCryptoData();
+  const { getPrice, fetchPrices, fetchHistoricalData } = useCryptoData();
 
   // Calculate enhanced asset data with current prices
-  const enrichedAssets = useMemo((): Asset[] => {
+  const enrichedAssets = useMemo(() => {
     return portfolioAssets.map(asset => {
       const priceData = getPrice(asset.symbol);
-      const value = asset.quantity * priceData.currentPrice;
-      const gainLoss = value - (asset.quantity * asset.entryPrice);
-      const gainLossPercent = ((priceData.currentPrice - asset.entryPrice) / asset.entryPrice) * 100;
-      
+      const currentPrice = priceData?.price || asset.entryPrice;
+      const currentValue = asset.quantity * currentPrice;
+      const totalCost = asset.quantity * asset.entryPrice;
+      const unrealizedPnL = currentValue - totalCost;
+      const unrealizedPnLPercent = (unrealizedPnL / totalCost) * 100;
+
       return {
-        ...asset,
-        name: priceData.name,
-        currentPrice: priceData.currentPrice,
-        value,
-        gainLoss,
-        gainLossPercent,
+        id: asset.id,
+        symbol: asset.symbol,
+        name: priceData?.symbol || asset.symbol,
+        quantity: asset.quantity,
+        entryPrice: asset.entryPrice,
+        currentPrice,
+        value: currentValue,
+        gainLoss: unrealizedPnL,
+        gainLossPercent: unrealizedPnLPercent,
         allocation: 0, // Will be calculated below
-        dayChange: asset.quantity * priceData.dayChange,
-        dayChangePercent: priceData.dayChangePercent,
+        dayChange: priceData?.change24h ? (priceData.change24h / 100) * currentValue : 0,
+        dayChangePercent: priceData?.change24h || 0,
       };
     });
   }, [portfolioAssets, getPrice]);
 
-  // Calculate portfolio totals and allocations
-  const portfolioMetrics = useMemo(() => {
+  // Calculate total portfolio metrics with allocations
+  const portfolioSummary = useMemo(() => {
     const totalValue = enrichedAssets.reduce((sum, asset) => sum + asset.value, 0);
-    const totalGainLoss = enrichedAssets.reduce((sum, asset) => sum + asset.gainLoss, 0);
-    const totalDayChange = enrichedAssets.reduce((sum, asset) => sum + asset.dayChange, 0);
-    
     const totalCost = enrichedAssets.reduce((sum, asset) => sum + (asset.quantity * asset.entryPrice), 0);
-    const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
-    const dayChangePercent = totalValue > 0 ? (totalDayChange / (totalValue - totalDayChange)) * 100 : 0;
+    const totalUnrealizedPnL = enrichedAssets.reduce((sum, asset) => sum + asset.gainLoss, 0);
+    const totalUnrealizedPnLPercent = totalCost > 0 ? (totalUnrealizedPnL / totalCost) * 100 : 0;
+
+    // Calculate 24h change
+    const total24hChange = enrichedAssets.reduce((sum, asset) => sum + asset.dayChange, 0);
+    const total24hChangePercent = totalValue > 0 ? (total24hChange / (totalValue - total24hChange)) * 100 : 0;
 
     // Update allocations
     const assetsWithAllocations = enrichedAssets.map(asset => ({
@@ -60,10 +66,12 @@ export const PortfolioDashboard = () => {
 
     return {
       totalValue,
-      totalGainLoss,
-      totalGainLossPercent,
-      totalDayChange,
-      dayChangePercent,
+      totalCost,
+      totalUnrealizedPnL,
+      totalUnrealizedPnLPercent,
+      total24hChange: total24hChange,
+      total24hChangePercent: total24hChangePercent,
+      assetCount: enrichedAssets.length,
       assets: assetsWithAllocations,
     };
   }, [enrichedAssets]);
@@ -104,11 +112,11 @@ export const PortfolioDashboard = () => {
 
         {/* Portfolio Overview */}
         <PortfolioOverview
-          totalValue={portfolioMetrics.totalValue}
-          totalGainLoss={portfolioMetrics.totalGainLoss}
-          totalGainLossPercent={portfolioMetrics.totalGainLossPercent}
-          dayChange={portfolioMetrics.totalDayChange}
-          dayChangePercent={portfolioMetrics.dayChangePercent}
+          totalValue={portfolioSummary.totalValue}
+          totalGainLoss={portfolioSummary.totalUnrealizedPnL}
+          totalGainLossPercent={portfolioSummary.totalUnrealizedPnLPercent}
+          dayChange={portfolioSummary.total24hChange}
+          dayChangePercent={portfolioSummary.total24hChangePercent}
         />
 
         {/* Main Content Tabs */}
@@ -126,17 +134,17 @@ export const PortfolioDashboard = () => {
 
           <TabsContent value="portfolio" className="space-y-6">
             <AssetTable
-              assets={portfolioMetrics.assets}
+              assets={portfolioSummary.assets}
               onRemoveAsset={handleRemoveAsset}
             />
           </TabsContent>
 
           <TabsContent value="simulation" className="space-y-6">
-            {portfolioMetrics.assets.length > 0 ? (
+            {portfolioSummary.assets.length > 0 ? (
               <SimulationPanel 
-                selectedAsset={portfolioMetrics.assets[0].symbol}
-                currentPrice={portfolioMetrics.assets[0].currentPrice}
-                historicalData={[]} // You can add historical data here
+                selectedAsset={portfolioSummary.assets[0].symbol}
+                currentPrice={portfolioSummary.assets[0].currentPrice}
+                fetchHistoricalData={fetchHistoricalData}
               />
             ) : (
               <Card>
