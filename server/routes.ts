@@ -78,11 +78,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbolList = symbols.split(',');
       const prices: Record<string, any> = {};
 
+      // Add timeout and better error handling for production
+      const fetchWithTimeout = async (url: string, timeout = 10000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; CryptoPortfolio/1.0)',
+              'Accept': 'application/json',
+            }
+          });
+          clearTimeout(timeoutId);
+          return response;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          throw error;
+        }
+      };
+
       for (const symbol of symbolList) {
         const kucoinSymbol = `${symbol.toUpperCase()}-USDT`;
         
         try {
-          const response = await fetch(
+          const response = await fetchWithTimeout(
             `https://api.kucoin.com/api/v1/market/stats?symbol=${kucoinSymbol}`
           );
 
@@ -101,19 +122,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 volume24h: parseFloat(ticker.volValue || 0),
                 symbol: symbol.toUpperCase(),
               };
+            } else {
+              console.warn(`Invalid KuCoin response for ${symbol}:`, data);
             }
           } else {
-            console.warn(`Failed to fetch ${symbol} from KuCoin API - status ${response.status}`);
+            const errorText = await response.text();
+            console.warn(`KuCoin API error for ${symbol} - status ${response.status}: ${errorText}`);
           }
         } catch (error) {
-          console.warn(`Error fetching ${symbol}:`, error);
+          console.warn(`Network error fetching ${symbol}:`, error instanceof Error ? error.message : error);
+          
+          // Fallback: try alternative endpoint
+          try {
+            const fallbackResponse = await fetchWithTimeout(
+              `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${kucoinSymbol}`
+            );
+            
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              if (fallbackData.code === '200000' && fallbackData.data) {
+                const price = parseFloat(fallbackData.data.price || fallbackData.data.bestAsk || 0);
+                prices[symbol.toLowerCase()] = {
+                  price: price,
+                  change24h: 0, // Not available in this endpoint
+                  volume24h: 0,
+                  symbol: symbol.toUpperCase(),
+                };
+                console.log(`Fallback price for ${symbol}: ${price}`);
+              }
+            }
+          } catch (fallbackError) {
+            console.warn(`Fallback also failed for ${symbol}:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
+          }
         }
+      }
+
+      if (Object.keys(prices).length === 0) {
+        res.status(503).json({ 
+          error: "Unable to fetch prices from external API", 
+          details: "All cryptocurrency price sources are currently unavailable"
+        });
+        return;
       }
 
       res.json(prices);
     } catch (error) {
       console.error('Error in crypto prices endpoint:', error);
-      res.status(500).json({ error: "Failed to fetch crypto prices" });
+      res.status(500).json({ 
+        error: "Failed to fetch crypto prices",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
@@ -124,36 +182,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endTime = Math.floor(Date.now() / 1000);
       const startTime = endTime - (365 * 24 * 60 * 60); // 1 year ago
       
-      const response = await fetch(
-        `https://api.kucoin.com/api/v1/market/candles?symbol=${kucoinSymbol}&type=1day&startAt=${startTime}&endAt=${endTime}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
+      console.log(`Fetching historical data for: ${symbol}`);
+      
+      // Add timeout and better error handling
+      const fetchWithTimeout = async (url: string, timeout = 15000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
         
-        if (data.code === '200000' && data.data) {
-          const historicalPrices = data.data.map((candle: string[]) => parseFloat(candle[2])).reverse();
-          res.json({ prices: historicalPrices });
-          return;
+        try {
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; CryptoPortfolio/1.0)',
+              'Accept': 'application/json',
+            }
+          });
+          clearTimeout(timeoutId);
+          return response;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          throw error;
         }
+      };
+
+      try {
+        const response = await fetchWithTimeout(
+          `https://api.kucoin.com/api/v1/market/candles?symbol=${kucoinSymbol}&type=1day&startAt=${startTime}&endAt=${endTime}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.code === '200000' && data.data && Array.isArray(data.data)) {
+            const historicalPrices = data.data
+              .map((candle: string[]) => parseFloat(candle[2]))
+              .filter((price: number) => !isNaN(price) && price > 0)
+              .reverse();
+            
+            console.log(`Historical data length: ${historicalPrices.length}`);
+            
+            if (historicalPrices.length > 0) {
+              res.json({ prices: historicalPrices });
+              return;
+            }
+          }
+        } else {
+          const errorText = await response.text();
+          console.warn(`KuCoin historical API error for ${symbol} - status ${response.status}: ${errorText}`);
+        }
+      } catch (error) {
+        console.warn(`Network error fetching historical data for ${symbol}:`, error instanceof Error ? error.message : error);
       }
 
-      // Generate realistic mock historical data as fallback
-      const days = 365;
-      const startPrice = 30000;
-      const historicalPrices = [];
-      let price = startPrice * 0.8;
+      // If we reach here, API failed - return error instead of mock data
+      res.status(503).json({ 
+        error: "Historical data unavailable", 
+        details: `Unable to fetch historical data for ${symbol} from external sources`
+      });
       
-      for (let i = 0; i < days; i++) {
-        const change = (Math.random() - 0.5) * 0.1;
-        price *= (1 + change);
-        historicalPrices.push(price);
-      }
-      
-      res.json({ prices: historicalPrices });
     } catch (error) {
       console.error('Error in historical data endpoint:', error);
-      res.status(500).json({ error: "Failed to fetch historical data" });
+      res.status(500).json({ 
+        error: "Failed to fetch historical data",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

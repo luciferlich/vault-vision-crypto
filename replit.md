@@ -10,8 +10,8 @@ Deployment preference: GitHub integration and external hosting required.
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite for fast development and optimized builds
+- **Framework**: Next.js with React 18 and TypeScript
+- **Build Tool**: Next.js built-in bundling and optimization
 - **UI Library**: Shadcn/ui components built on Radix UI primitives
 - **Styling**: Tailwind CSS with custom design system
 - **State Management**: TanStack Query for server state and React hooks for local state
@@ -85,13 +85,13 @@ Deployment preference: GitHub integration and external hosting required.
 ## Deployment Strategy
 
 ### Build Process
-- **Frontend**: Vite builds static assets to `dist/public`
-- **Backend**: esbuild bundles server code to `dist/index.js`
+- **Frontend**: Next.js builds optimized static assets and server functions
+- **Backend**: Serverless functions deployed to Vercel Edge Network
 - **Database**: Drizzle migrations in `migrations/` directory
 
 ### Environment Configuration
-- **Development**: Uses Vite dev server with HMR and Express backend
-- **Production**: Static files served by Express with API routes
+- **Development**: Next.js dev server with API routes and Express backend
+- **Production**: Serverless deployment on Vercel with edge functions
 - **Database**: Requires `DATABASE_URL` environment variable
 
 ### Deployment Requirements
