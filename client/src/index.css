@@ -71,3 +71,41 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Custom gradient backgrounds */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  .bg-gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+  
+  /* Custom shadows */
+  .shadow-elevation {
+    box-shadow: var(--shadow-elevation);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-data {
+    transition: var(--transition-data);
+  }
+  
+  /* Hover effects */
+  .hover\:shadow-glow:hover {
+    box-shadow: var(--shadow-glow);
+  }
+}
