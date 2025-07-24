@@ -33,51 +33,14 @@ export const useCryptoData = () => {
     setLoading(true);
     
     try {
-      // Use KuCoin API to fetch 24hr ticker data
-      const newPrices: Record<string, CryptoPrice> = {};
+      // Use backend proxy to fetch prices (avoids CORS issues)
+      const response = await fetch(`/api/crypto/prices?symbols=${symbols.join(',')}`);
       
-      for (const symbol of symbols) {
-        const kucoinSymbol = SYMBOL_MAPPING[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USDT`;
-        
-        try {
-          // Fetch 24hr ticker from KuCoin
-          const response = await fetch(
-            `https://api.kucoin.com/api/v1/market/stats?symbol=${kucoinSymbol}`,
-            {
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            }
-          );
-
-          if (!response.ok) {
-            console.warn(`Failed to fetch ${symbol} from KuCoin`);
-            continue;
-          }
-
-          const data = await response.json();
-          
-          if (data.code === '200000' && data.data) {
-            const ticker = data.data;
-            newPrices[symbol.toLowerCase()] = {
-              price: parseFloat(ticker.last || ticker.buy || 0),
-              change24h: parseFloat(ticker.changeRate || 0) * 100, // Convert to percentage
-              volume24h: parseFloat(ticker.volValue || 0),
-              symbol: symbol.toUpperCase(),
-            };
-          }
-        } catch (error) {
-          console.warn(`Error fetching ${symbol}:`, error);
-          // Provide fallback mock data for demo purposes
-          newPrices[symbol.toLowerCase()] = {
-            price: Math.random() * 50000 + 1000,
-            change24h: (Math.random() - 0.5) * 20,
-            volume24h: Math.random() * 1000000000,
-            symbol: symbol.toUpperCase(),
-          };
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch prices from backend');
       }
 
+      const newPrices = await response.json();
       setPrices(prevPrices => ({ ...prevPrices, ...newPrices }));
       
       if (Object.keys(newPrices).length > 0) {
@@ -110,7 +73,7 @@ export const useCryptoData = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const getPrice = useCallback((symbol: string): CryptoPrice | null => {
     return prices[symbol.toLowerCase()] || null;
@@ -119,26 +82,14 @@ export const useCryptoData = () => {
   // Add historical data fetching for simulations
   const fetchHistoricalData = useCallback(async (symbol: string): Promise<number[]> => {
     try {
-      const kucoinSymbol = SYMBOL_MAPPING[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USDT`;
-      const endTime = Math.floor(Date.now() / 1000);
-      const startTime = endTime - (365 * 24 * 60 * 60); // 1 year ago
+      const response = await fetch(`/api/crypto/historical/${symbol}`);
       
-      const response = await fetch(
-        `https://api.kucoin.com/api/v1/market/candles?symbol=${kucoinSymbol}&type=1day&startAt=${startTime}&endAt=${endTime}`
-      );
-
       if (!response.ok) {
         throw new Error('Failed to fetch historical data');
       }
 
       const data = await response.json();
-      
-      if (data.code === '200000' && data.data) {
-        // KuCoin returns [time, open, close, high, low, volume, turnover]
-        return data.data.map((candle: string[]) => parseFloat(candle[2])).reverse(); // close prices
-      }
-      
-      throw new Error('Invalid response format');
+      return data.prices;
       
     } catch (error) {
       console.warn(`Failed to fetch historical data for ${symbol}, using mock data`);
